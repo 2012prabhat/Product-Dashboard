@@ -1,0 +1,5 @@
+@import "tailwindcss";
+
+:root{
+    --mainCol: #2d3436;
+}
