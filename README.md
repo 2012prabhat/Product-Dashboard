@@ -2,7 +2,7 @@ Weecom Frontend Task - Product Dashboard
 A responsive product dashboard built with React, TailwindCSS, and shadcn/ui components, using the DummyJSON API for product data management.
 
 🚀 Live Demo
-[Add your deployed application link here]
+https://product-dashboard-virid.vercel.app/
 
 📋 Features
 Responsive Dashboard Layout: Sidebar + header + main content
