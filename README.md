@@ -32,8 +32,8 @@ React Router DOM (if applicable)
 Clone the repository
 
 bash
-git clone [your-repository-url]
-cd weecom-frontend-task
+git clone https://github.com/2012prabhat/Product-Dashboard
+cd dashboard
 Install dependencies
 
 bash

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 
 // Import Shadcn components with proper exports
 import { Button } from "@/components/ui/button";
@@ -22,13 +22,49 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent} from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 
-// Custom Pagination component to avoid import issues
-const Pagination = ({ 
+// Define types
+interface Product {
+  id: number;
+  title: string;
+  price: number;
+  category: string;
+  stock: number;
+  rating: number;
+  [key: string]: any; // For any additional properties
+}
+
+interface NewProduct {
+  title: string;
+  price: string;
+  category: string;
+  stock: string;
+  rating: string;
+}
+
+interface ProductsResponse {
+  products: Product[];
+  total: number;
+}
+
+interface PaginationProps {
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+  isLoading: boolean;
+  searchTerm: string;
+  debouncedSearchTerm: string;
+}
+
+interface TableCompProps {
+  sideBarDis: boolean;
+}
+
+const Pagination: React.FC<PaginationProps> = ({ 
   currentPage, 
   totalPages, 
   onPageChange, 
@@ -94,21 +130,21 @@ const Pagination = ({
   );
 };
 
-function TableComp({ sideBarDis }) {
-  const [currentPage, setCurrentPage] = useState(1);
-  const [editingProduct, setEditingProduct] = useState(null);
-  const [newProduct, setNewProduct] = useState({
+const TableComp: React.FC<TableCompProps> = ({ sideBarDis }) => {
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [newProduct, setNewProduct] = useState<NewProduct>({
     title: "",
     price: "",
     category: "",
     stock: "",
     rating: ""
   });
-  const [searchTerm, setSearchTerm] = useState("");
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [productToDelete, setProductToDelete] = useState(null);
+  const [searchTerm, setSearchTerm] = useState<string>("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState<string>("");
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState<boolean>(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState<boolean>(false);
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const queryClient = useQueryClient();
   const itemsPerPage = 10;
   const skip = (currentPage - 1) * itemsPerPage;
@@ -124,22 +160,22 @@ function TableComp({ sideBarDis }) {
     };
   }, [searchTerm]);
 
-  const getProducts = async () => {
+  const getProducts = async (): Promise<ProductsResponse> => {
     const response = await axios.get(
       `https://dummyjson.com/products/search?q=${debouncedSearchTerm}&limit=${itemsPerPage}&skip=${skip}`
     );
     return response.data;
   };
 
-  const { data, error, isLoading, isError } = useQuery({
+  const { data, error, isLoading, isError } = useQuery<ProductsResponse>({
     queryKey: ["products", currentPage, debouncedSearchTerm],
     queryFn: getProducts,
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 
   // Add new product mutation
   const addProductMutation = useMutation({
-    mutationFn: async (product) => {
+    mutationFn: async (product: Omit<Product, 'id'>) => {
       const response = await axios.post(
         "https://dummyjson.com/products/add",
         product
@@ -155,7 +191,7 @@ function TableComp({ sideBarDis }) {
 
   // Update product mutation
   const updateProductMutation = useMutation({
-    mutationFn: async (product) => {
+    mutationFn: async (product: Product) => {
       const response = await axios.put(
         `https://dummyjson.com/products/${product.id}`,
         product
@@ -170,7 +206,7 @@ function TableComp({ sideBarDis }) {
 
   // Delete product mutation
   const deleteProductMutation = useMutation({
-    mutationFn: async (productId) => {
+    mutationFn: async (productId: number) => {
       const response = await axios.delete(
         `https://dummyjson.com/products/${productId}`
       );
@@ -180,7 +216,7 @@ function TableComp({ sideBarDis }) {
       // Remove the product from the frontend immediately
       queryClient.setQueryData(
         ["products", currentPage, debouncedSearchTerm],
-        (oldData) => {
+        (oldData: ProductsResponse | undefined) => {
           if (!oldData) return oldData;
           
           return {
@@ -198,7 +234,7 @@ function TableComp({ sideBarDis }) {
   const totalPages = data ? Math.ceil(data.total / itemsPerPage) : 0;
   const totalProducts = data?.total || 0;
 
-  const handleEdit = (product) => {
+  const handleEdit = (product: Product) => {
     setEditingProduct({ ...product });
   };
 
@@ -208,7 +244,7 @@ function TableComp({ sideBarDis }) {
     }
   };
 
-  const handleDeleteClick = (product) => {
+  const handleDeleteClick = (product: Product) => {
     setProductToDelete(product);
     setDeleteDialogOpen(true);
   };
@@ -219,7 +255,7 @@ function TableComp({ sideBarDis }) {
     }
   };
 
-  const handleAddProduct = (e) => {
+  const handleAddProduct = (e: React.FormEvent) => {
     e.preventDefault();
     const productToAdd = {
       title: newProduct.title,
@@ -231,17 +267,17 @@ function TableComp({ sideBarDis }) {
     addProductMutation.mutate(productToAdd);
   };
 
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setNewProduct(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleEditInputChange = (e) => {
+  const handleEditInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setEditingProduct(prev => ({ ...prev, [name]: value }));
+    setEditingProduct(prev => prev ? { ...prev, [name]: value } : null);
   };
 
-  const handleSearch = (e) => {
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
     setCurrentPage(1);
   };
@@ -252,14 +288,14 @@ function TableComp({ sideBarDis }) {
     setCurrentPage(1);
   };
 
-  const handlePageChange = (page) => {
+  const handlePageChange = (page: number) => {
     setCurrentPage(page);
   };
 
   if (isError) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="text-red-500 text-lg">Error: {error.message}</div>
+        <div className="text-red-500 text-lg">Error: {(error as Error).message}</div>
       </div>
     );
   }
@@ -407,8 +443,8 @@ function TableComp({ sideBarDis }) {
               />
             </div>
             <DialogFooter>
-              <Button type="submit" disabled={addProductMutation.isLoading}>
-                {addProductMutation.isLoading ? "Adding..." : "Add Product"}
+              <Button type="submit" disabled={addProductMutation.isPending}>
+                {addProductMutation.isPending ? "Adding..." : "Add Product"}
               </Button>
             </DialogFooter>
           </form>
@@ -435,9 +471,9 @@ function TableComp({ sideBarDis }) {
               variant="outline"
               className="bg-red-900"
               onClick={handleDeleteConfirm}
-              disabled={deleteProductMutation.isLoading}
+              disabled={deleteProductMutation.isPending}
             >
-              {deleteProductMutation.isLoading ? "Deleting..." : "Delete"}
+              {deleteProductMutation.isPending ? "Deleting..." : "Delete"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -525,9 +561,9 @@ function TableComp({ sideBarDis }) {
             <DialogFooter>
               <Button variant="outline"
                 onClick={handleSave}
-                disabled={updateProductMutation.isLoading}
+                disabled={updateProductMutation.isPending}
               >
-                {updateProductMutation.isLoading ? "Saving..." : "Save changes"}
+                {updateProductMutation.isPending ? "Saving..." : "Save changes"}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -569,7 +605,7 @@ function TableComp({ sideBarDis }) {
                 </TableRow>
               ) : (
                 // Data loaded - show products
-                data?.products?.map((product) => (
+                data?.products?.map((product: Product) => (
                   <TableRow key={product.id}>
                     <TableCell className="font-medium">{product.title}</TableCell>
                     <TableCell>${product.price}</TableCell>
@@ -607,7 +643,7 @@ function TableComp({ sideBarDis }) {
                           className="bg-red-600 text-white"
                           size="sm"
                           onClick={() => handleDeleteClick(product)}
-                          disabled={deleteProductMutation.isLoading}
+                          disabled={deleteProductMutation.isPending}
                         >
                           Delete
                         </Button>
@@ -632,6 +668,6 @@ function TableComp({ sideBarDis }) {
       />
     </div>
   );
-}
+};
 
 export default TableComp;

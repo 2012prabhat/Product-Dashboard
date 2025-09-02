@@ -1,6 +1,12 @@
 import React from "react";
 
-function Sidebar({ sideBarDis, seSideBarDis }) {
+// Define the props interface
+interface SidebarProps {
+  sideBarDis: boolean;
+  setSideBarDis: (value: boolean) => void;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ sideBarDis }) => {
   return (
     <>
       <div
@@ -14,6 +20,6 @@ function Sidebar({ sideBarDis, seSideBarDis }) {
       </div>
     </>
   );
-}
+};
 
 export default Sidebar;

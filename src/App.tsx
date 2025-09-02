@@ -9,8 +9,9 @@ import {
 } from "@tanstack/react-query";
 
 function App() {
-  const [sideBarDis, setSideBarDis] = useState(false);
+  const [sideBarDis, setSideBarDis] = useState<boolean>(false);
   const queryClient = new QueryClient();
+  
   return (
     <>
       <QueryClientProvider client={queryClient}>
